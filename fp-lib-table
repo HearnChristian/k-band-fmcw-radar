@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "AMM-8211PSM")(type "KiCad")(uri "${KIPRJMOD}/AMM-8211PSM.pretty")(options "")(descr "Marki AMM-8211PSM 3x3mm 16-QFN footprint"))
+)

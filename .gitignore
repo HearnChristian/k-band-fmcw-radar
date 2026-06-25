@@ -1,0 +1,13 @@
+# KiCad transient / local files
+*.lck
+~*.lck
+\#auto_saved_files\#
+*.kicad_prl
+fp-info-cache
+*-bak
+*.kicad_sch-bak
+Radar1-backups/
+
+# OS cruft
+.DS_Store
+Thumbs.db
