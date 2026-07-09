@@ -1,5 +1,25 @@
 # Changelog
 
+## Footprint pass — 2026-07-09
+
+Every IC/connector footprint is now assigned and resolvable; layout is unblocked.
+
+- New project library **`RadarFP.pretty`** (registered in `fp-lib-table`) with 12
+  vendor/UltraLibrarian footprints recovered from the part archives in
+  `~/Downloads` (they had been downloaded with the symbols but never installed):
+  BGT24 PQFN-16, ADF4159 CP-24-10, ADP5600 CP-16-17, ADS8353 PW-16,
+  OPA1656 D-8, TPS7A20 DBV-5, TPS7A4700 RGW-20 (IPC_A variant — the MFG variant
+  splits the EP into 10 separately numbered tiles and breaks pin mapping),
+  FT2232H LQFP-64, 93LC56B SOIC-8, CTS 445 crystal, ECS-TXO-2520MV, GCT USB4215.
+- All pad numbering validated against schematic symbol pins (incl. EP numbers:
+  ADF4159 EP=25, ADP5600 EP=17, BGT24 EP=17); dimensions sanity-checked against
+  package tables; render preview in `docs/footprints-preview.png`.
+- U4/U14 (TPS7A2033, SOT-23-5/DBV) repointed to the DBV footprint — the
+  previously referenced `TPS7A2033PDBVR:SOT95P280X145-5N` never existed on disk
+  and the downloaded TPS7A2033 archive was the wrong package variant (DQN).
+- Stray `Designator*` silkscreen text removed from the DBV and RGW footprints.
+- Netlist connectivity verified unchanged; ERC footprint_link_issues 17 → 0.
+
 ## Rev D — 2026-07-09
 
 SPI level-domain fix (found in pre-layout review; ADF4159 DS Rev E, Table 4).

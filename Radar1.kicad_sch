@@ -15314,7 +15314,7 @@
 				)
 			)
 		)
-		(property "Footprint" "PW16_TEX"
+		(property "Footprint" "RadarFP:PW16_TEX"
 			(at 49.53 167.64 0)
 			(effects
 				(font
@@ -15827,7 +15827,7 @@
 				)
 			)
 		)
-		(property "Footprint" "RGW0020A-IPC_A"
+		(property "Footprint" "RadarFP:RGW0020A-IPC_A"
 			(at 340.36 113.03 0)
 			(effects
 				(font
@@ -15954,7 +15954,7 @@
 				)
 			)
 		)
-		(property "Footprint" "ECS-TXO-2520MV-500-AN-TR:OSC_ECS-TXO-2520MV-500-AN-TR"
+		(property "Footprint" "RadarFP:OSC_ECS-TXO-2520MV-500-AN-TR"
 			(at 96.52 92.71 0)
 			(effects
 				(font
@@ -16542,7 +16542,7 @@
 				)
 			)
 		)
-		(property "Footprint" "D0008A_N"
+		(property "Footprint" "RadarFP:D0008A_N"
 			(at 138.43 110.49 0)
 			(effects
 				(font
@@ -16898,7 +16898,7 @@
 				)
 			)
 		)
-		(property "Footprint" "DBV0005A-IPC_A"
+		(property "Footprint" "RadarFP:DBV0005A-IPC_A"
 			(at 20.32 97.79 0)
 			(effects
 				(font
@@ -17381,7 +17381,7 @@
 				)
 			)
 		)
-		(property "Footprint" "FT2232HL-REEL:QFP50P1200X1200X160-64N"
+		(property "Footprint" "RadarFP:QFP50P1200X1200X160-64N"
 			(at 191.77 77.47 0)
 			(effects
 				(font
@@ -17930,7 +17930,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "D0008A_N"
+		(property "Footprint" "RadarFP:D0008A_N"
 			(at 270.51 34.29 0)
 			(effects
 				(font
@@ -19707,7 +19707,7 @@
 				)
 			)
 		)
-		(property "Footprint" "CP-16-17_ADI"
+		(property "Footprint" "RadarFP:CP-16-17_ADI"
 			(at 105.41 129.54 0)
 			(effects
 				(font
@@ -20497,7 +20497,7 @@
 				)
 			)
 		)
-		(property "Footprint" "TPS7A2033PDBVR:SOT95P280X145-5N"
+		(property "Footprint" "RadarFP:DBV0005A-IPC_A"
 			(at 340.36 195.58 0)
 			(effects
 				(font
@@ -21733,7 +21733,7 @@
 				)
 			)
 		)
-		(property "Footprint" "RGW0020A-IPC_A"
+		(property "Footprint" "RadarFP:RGW0020A-IPC_A"
 			(at 233.68 118.11 0)
 			(effects
 				(font
@@ -22200,7 +22200,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "CONN_8p94X6p5X3p16_12L_GCC"
+		(property "Footprint" "RadarFP:CONN_8p94X6p5X3p16_12L_GCC"
 			(at 51.816 171.196 0)
 			(effects
 				(font
@@ -22382,7 +22382,7 @@
 				)
 			)
 		)
-		(property "Footprint" "TPS7A2033PDBVR:SOT95P280X145-5N"
+		(property "Footprint" "RadarFP:DBV0005A-IPC_A"
 			(at 38.1 76.2 0)
 			(effects
 				(font
@@ -23615,7 +23615,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "D0008A_N"
+		(property "Footprint" "RadarFP:D0008A_N"
 			(at 270.51 77.47 0)
 			(effects
 				(font
@@ -25328,7 +25328,7 @@
 				)
 			)
 		)
-		(property "Footprint" "445I23D12M00000_CTS"
+		(property "Footprint" "RadarFP:445I23D12M00000_CTS"
 			(at 173.99 158.75 0)
 			(effects
 				(font
@@ -26140,7 +26140,7 @@
 				)
 			)
 		)
-		(property "Footprint" "SOIC8-N_MC_MCH"
+		(property "Footprint" "RadarFP:SOIC8-N_MC_MCH"
 			(at 22.86 134.62 0)
 			(effects
 				(font
@@ -26582,7 +26582,7 @@
 				)
 			)
 		)
-		(property "Footprint" "CP_24_10"
+		(property "Footprint" "RadarFP:CP_24_10"
 			(at 86.36 24.13 0)
 			(effects
 				(font
@@ -27325,7 +27325,7 @@
 				)
 			)
 		)
-		(property "Footprint" "BGT24LTR11N16:PQFN50P240X240X77-17N-V"
+		(property "Footprint" "RadarFP:PQFN50P240X240X77-17N-V"
 			(at 29.21 19.05 0)
 			(effects
 				(font
