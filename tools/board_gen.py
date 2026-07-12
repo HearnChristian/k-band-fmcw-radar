@@ -48,6 +48,7 @@ FIXED = {
  "U9": (19.5, 37.0, 0),  "U5": (26.5, 37.0, 0),
  "U14": (33.0, 37.0, 0), "U6": (38.5, 37.0, 0),
  "D1": (37.0, 31.0, 0),  "J2": (56.0, 34.0, 0),
+ "C55": (42.5, 24.2, 0), "R22": (33.0, 22.0, 0),
 }
 # ring start radius by owner (courtyard half-extent + margin)
 RSTART = {"U7": 8.5, "J1": 6.5, "U6": 5.0, "U13": 5.0, "U2": 4.0, "U9": 4.0,
@@ -270,6 +271,15 @@ def edges():
 for _r, (_x, _y, _rot) in FIXED.items():
     x0, y0, x1, y1 = _rot_bbox(bbox_of(_r), _rot)
     RECTS.append((OX+_x+x0, OY+_y+y0, OX+_x+x1, OY+_y+y1))
+
+# RF corridor keepouts (absolute mm) — GCPW lines + via fences from
+# tools/route_pcb.py must stay clear of auto-slotted passives
+RF_KEEPOUT = [
+    (78.8, 44.5, 82.1, 58.8),   # RF_TX: U1.11 -> corridor x=80.6 -> U12.2
+    (60.9, 44.7, 77.0, 47.6),   # ANT_TX: U12.10 -> west to J3
+    (60.9, 56.2, 77.3, 63.9),   # ANT_RX: J4 -> 45deg -> U1.3
+]
+RECTS.extend(RF_KEEPOUT)
 order = list(FIXED) + sorted([r for r in comps if r not in FIXED],
                              key=lambda r: (r[0], int(re.sub(r'\D','',r) or 0)))
 blocks = [embed(r) for r in order]

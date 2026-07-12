@@ -36,13 +36,8 @@
   (pad "17" smd rect (at 0 0) (size 1.10 1.10) (layers "F.Cu" "F.Mask" "F.Paste"))
 
   (pad "17" thru_hole circle (at -0.3 -0.3) (size 0.45 0.45) (drill 0.25) (layers "*.Cu"))
-  (pad "17" thru_hole circle (at 0.0 -0.3) (size 0.45 0.45) (drill 0.25) (layers "*.Cu"))
   (pad "17" thru_hole circle (at 0.3 -0.3) (size 0.45 0.45) (drill 0.25) (layers "*.Cu"))
-  (pad "17" thru_hole circle (at -0.3 0.0) (size 0.45 0.45) (drill 0.25) (layers "*.Cu"))
-  (pad "17" thru_hole circle (at 0.0 0.0) (size 0.45 0.45) (drill 0.25) (layers "*.Cu"))
-  (pad "17" thru_hole circle (at 0.3 0.0) (size 0.45 0.45) (drill 0.25) (layers "*.Cu"))
   (pad "17" thru_hole circle (at -0.3 0.3) (size 0.45 0.45) (drill 0.25) (layers "*.Cu"))
-  (pad "17" thru_hole circle (at 0.0 0.3) (size 0.45 0.45) (drill 0.25) (layers "*.Cu"))
   (pad "17" thru_hole circle (at 0.3 0.3) (size 0.45 0.45) (drill 0.25) (layers "*.Cu"))
 
   (fp_line (start -1.5 -1.5) (end 1.0 -1.5) (layer "F.Fab") (width 0.1))

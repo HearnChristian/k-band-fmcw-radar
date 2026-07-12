@@ -11,3 +11,5 @@ Radar1-backups/
 # OS cruft
 .DS_Store
 Thumbs.db
+*.bak
+_drc.rpt
