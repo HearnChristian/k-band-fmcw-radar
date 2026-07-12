@@ -81,7 +81,7 @@ RIPPABLE = {n for _, n in net_order}
 # hardmaps: pads, vias, board edge, non-rippable tracks  (0/net/255)
 # softmaps: tracks of rippable nets                      (0/net/255)
 # maps:     union of both, what A* normally sees
-HWS = (0.1, 0.2)                # track halfwidth classes: signal / power
+HWS = (0.075, 0.1, 0.2)         # halfwidths: heal-thin / signal / power
 maps = hardmaps = softmaps = None
 holes = []                      # (x, y) of every drill on the board
 STUB_IDS = set()                # escape-stub track objects (never ripped)
@@ -202,6 +202,7 @@ def hole_ok(x, y):
     return all((x-a)**2 + (y-c)**2 >= 0.65**2 for a, c in holes)
 
 def hwclass(hw):
+    if hw <= 0.075: return 0.075
     return 0.1 if hw <= 0.1 else 0.2
 
 def via_ok(code, hw, ix, iy):
@@ -818,7 +819,7 @@ for _hround in (1, 2):
         for root, members in padded[1:]:
             goals = cluster_cells(members, code)
             done = False
-            for ww in ((w, 0.2) if w == 0.4 else (0.2,)):
+            for ww in ((w, 0.2, 0.15) if w == 0.4 else (0.2, 0.15)):
                 srcs = main_cells - goals
                 if not srcs or not goals: continue
                 path, ripped = astar(code, ww / 2, srcs, goals)
