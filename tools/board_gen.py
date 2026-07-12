@@ -12,7 +12,7 @@ NET = D + "/Radar1.net"
 OUT = D + "/Radar1.kicad_pcb"
 
 OX, OY = 60.0, 40.0          # page origin of board's top-left corner
-BW, BH = 60.0, 42.0          # board size, mm
+BW, BH = 66.0, 46.0          # board size, mm
 
 def nuid(): return str(uuid.uuid4())
 
@@ -43,11 +43,11 @@ FIXED = {
  "U3": (26.0, 6.5, 0),   "U8": (35.0, 6.0, 0),
  "U16": (34.0, 12.0, 0), "U7": (45.0, 16.0, 0),
  "U11": (41.5, 27.0, 0), "U10": (48.3, 26.3, 0),
- "U15": (54.0, 22.5, 0), "J1": (57.5, 15.5, 90),
- "U4": (5.0, 37.0, 0),   "U13": (12.0, 37.0, 0),
- "U9": (19.5, 37.0, 0),  "U5": (26.5, 37.0, 0),
- "U14": (33.0, 37.0, 0), "U6": (38.5, 37.0, 0),
- "D1": (37.0, 31.0, 0),  "J2": (56.0, 34.0, 0),
+ "U15": (60.0, 22.5, 0), "J1": (63.5, 15.5, 90),
+ "U4": (5.0, 41.0, 0),   "U13": (13.0, 41.0, 0),
+ "U9": (21.0, 41.0, 0),  "U5": (29.0, 41.0, 0),
+ "U14": (37.0, 41.0, 0), "U6": (44.0, 41.0, 0),
+ "D1": (42.0, 35.0, 0),  "J2": (62.0, 38.0, 0),
  "C55": (42.5, 24.2, 0), "R22": (33.0, 22.0, 0),
 }
 # ring start radius by owner (courtyard half-extent + margin)
@@ -84,13 +84,21 @@ def owner(ref):
 
 # ---------- size-aware ring slot allocator ----------
 def _fp_bbox(path):
+    """pads ∪ courtyard when a courtyard exists; else pads ∪ all drawings.
+    (never trust bare point scans: custom-pad primitives are pad-local)"""
     t = open(path).read()
     xs, ys = [], []
     for m in re.finditer(r'\(pad\s+"[^"]*"[^(]*\(at\s+([-\d.]+)\s+([-\d.]+)(?:\s+[-\d.]+)?\)\s*\(size\s+([-\d.]+)\s+([-\d.]+)\)', t):
         x, y, sx, sy = map(float, m.groups())
         xs += [x-sx/2, x+sx/2]; ys += [y-sy/2, y+sy/2]
-    for m in re.finditer(r'\((?:start|end|xy)\s+([-\d.]+)\s+([-\d.]+)\)', t):
-        xs.append(float(m.group(1))); ys.append(float(m.group(2)))
+    cxs, cys, dxs, dys = [], [], [], []
+    for blk in re.finditer(r'\(fp_(?:line|rect|poly|circle|arc)(.*?)\(layer "([^"]+)"\)', t, re.S):
+        body, layer = blk.groups()
+        tx, ty = (cxs, cys) if layer.endswith("CrtYd") else (dxs, dys)
+        for m in re.finditer(r'\((?:start|end|xy|center)\s+([-\d.]+)\s+([-\d.]+)\)', body):
+            tx.append(float(m.group(1))); ty.append(float(m.group(2)))
+    xs += cxs if cxs else dxs
+    ys += cys if cys else dys
     if not xs: return (-1, -1, 1, 1)
     return (min(xs), min(ys), max(xs), max(ys))
 
@@ -116,23 +124,33 @@ def _rot_bbox(bb, rot):
 
 def free_rect(x, y, bb, gap=0.3):
     x0, y0, x1, y1 = x+bb[0]-gap, y+bb[1]-gap, x+bb[2]+gap, y+bb[3]+gap
-    if x0 < OX+0.8 or y0 < OY+0.8 or x1 > OX+BW-0.8 or y1 > OY+BH-2.6:
+    if x0 < OX+0.8 or y0 < OY+0.8 or x1 > OX+BW-0.8 or y1 > OY+BH-2.0:
         return False
     for a0, b0, a1, b1 in RECTS:
         if x0 < a1 and x1 > a0 and y0 < b1 and y1 > b0:
             return False
     return True
 
+# region walled in by the RF runs + via fences: only parts owned by the RF
+# chain may slot here, everything else would need to tunnel under the GCPW
+POCKET = (60.9, 47.7, 78.8, 56.1)
+RF_OWNERS = {"U1", "U12", "J3", "J4"}
+
 def slot_near(oref, ref):
     bb = bbox_of(ref)
     bx, by, _ = FIXED[oref]
     cx, cy = OX+bx, OY+by
     cands = sorted((( (i*0.55)**2 + (j*0.55)**2, cx+i*0.55, cy+j*0.55)
-                    for i in range(-60, 61) for j in range(-60, 61)))
-    for _, x, y in cands:
-        if free_rect(x, y, bb):
-            RECTS.append((x+bb[0], y+bb[1], x+bb[2], y+bb[3]))
-            return x, y
+                    for i in range(-110, 111) for j in range(-80, 81)
+                    if OX <= cx+i*0.55 <= OX+BW and OY <= cy+j*0.55 <= OY+BH))
+    for gap in (0.3, 0.15, 0.05):
+        for _, x, y in cands:
+            if oref not in RF_OWNERS and \
+               POCKET[0] < x < POCKET[2] and POCKET[1] < y < POCKET[3]:
+                continue
+            if free_rect(x, y, bb, gap):
+                RECTS.append((x+bb[0], y+bb[1], x+bb[2], y+bb[3]))
+                return x, y
     raise RuntimeError("no slot near " + oref)
 
 # ---------- footprint embedding ----------
@@ -268,20 +286,41 @@ def edges():
     g.append(f'\t(gr_text "24 GHz FMCW RADAR  REV D" (at {OX+30} {OY+BH-1.2} 0) (layer "F.SilkS") (uuid "{nuid()}") (effects (font (size 1 1) (thickness 0.15))))')
     return "\n".join(g)
 
+HALO = 0.4    # routing lane around ICs: pin escapes + via annuli
+HALO_REFS = {"U1","U2","U3","U7","U8","U9","U10","U11","U12","U13","U14",
+             "U15","U16","U4","U5","U6","J1","Y1"}
+HALO_BIG = {"U2": 0.9, "U7": 0.9, "J1": 0.9, "U1": 0.7,   # escape-critical
+            "U8": 0.7, "U9": 0.7, "U16": 0.7}
 for _r, (_x, _y, _rot) in FIXED.items():
     x0, y0, x1, y1 = _rot_bbox(bbox_of(_r), _rot)
-    RECTS.append((OX+_x+x0, OY+_y+y0, OX+_x+x1, OY+_y+y1))
+    h = HALO_BIG.get(_r, HALO if _r in HALO_REFS else 0.0)
+    RECTS.append((OX+_x+x0-h, OY+_y+y0-h, OX+_x+x1+h, OY+_y+y1+h))
 
 # RF corridor keepouts (absolute mm) — GCPW lines + via fences from
-# tools/route_pcb.py must stay clear of auto-slotted passives
+# tools/route_pcb.py must stay clear of auto-slotted passives.
+# ANT_RX is stair-stepped along its 45deg leg to waste less area.
 RF_KEEPOUT = [
     (78.8, 44.5, 82.1, 58.8),   # RF_TX: U1.11 -> corridor x=80.6 -> U12.2
     (60.9, 44.7, 77.0, 47.6),   # ANT_TX: U12.10 -> west to J3
-    (60.9, 56.2, 77.3, 63.9),   # ANT_RX: J4 -> 45deg -> U1.3
+    (60.9, 61.1, 70.0, 63.9),   # ANT_RX leg1: J4 -> east
+    (67.6, 59.0, 72.0, 63.9),   # ANT_RX 45deg lower stair
+    (70.6, 56.1, 75.3, 61.0),   # ANT_RX 45deg upper stair
+    (72.6, 56.1, 77.3, 58.9),   # ANT_RX leg3: into U1.3
 ]
 RECTS.extend(RF_KEEPOUT)
+# bus lanes: keep auto-slotted passives out of the SPI/USB escape corridors
+BUS_LANES = [
+    (86.4, 57.0, 89.6, 65.0),   # east of U2: SPI/CS/MUXOUT toward U7
+    (96.6, 49.0, 98.9, 63.0),   # west of U7: ADBUS/USB entry
+]
+RECTS.extend(BUS_LANES)
+def _area(r):
+    x0, y0, x1, y1 = bbox_of(r)
+    return (x1 - x0) * (y1 - y0)
+# big parts first: packs tighter, avoids stranding late large parts
 order = list(FIXED) + sorted([r for r in comps if r not in FIXED],
-                             key=lambda r: (r[0], int(re.sub(r'\D','',r) or 0)))
+                             key=lambda r: (-_area(r), r[0],
+                                            int(re.sub(r'\D','',r) or 0)))
 blocks = [embed(r) for r in order]
 open(OUT, "w").write(header() + "\n".join(blocks) + "\n" + edges() + "\n)\n")
 print(f"wrote {OUT}: {len(blocks)} footprints, {len(names)} nets")

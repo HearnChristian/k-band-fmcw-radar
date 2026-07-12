@@ -10,7 +10,7 @@ import pcbnew
 from pcbnew import VECTOR2I, FromMM, ToMM
 
 BOARD = "/home/christian-thomas-hearn/Desktop/X-BAND FMCW RADAR/Radar1/Radar1.kicad_pcb"
-OX, OY, BW, BH = 60.0, 40.0, 60.0, 42.0
+OX, OY, BW, BH = 60.0, 40.0, 66.0, 46.0
 
 b = b_board = pcbnew.LoadBoard(BOARD)
 
@@ -106,6 +106,14 @@ add_zone(pcbnew.F_Cu,   "GND", rect, 0, 0.25)   # GCPW top ground, gap 0.25
 add_zone(pcbnew.In1_Cu, "GND", rect, 0, 0.20)
 add_zone(pcbnew.In2_Cu, "+5V", rect, 0, 0.30)
 add_zone(pcbnew.B_Cu,   "GND", rect, 0, 0.20)
+
+# In2 split plane: rail sub-zones (priority 1) over the +5V base fill.
+# Keep in sync with PLANES in tools/route_signals.py.
+def zrect(x0, y0, x1, y1):
+    return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+add_zone(pcbnew.In2_Cu, "+3V3_RF",  zrect(59.0, 41.0,  88.0, 78.0), 1, 0.30)
+add_zone(pcbnew.In2_Cu, "+1V8",     zrect(88.5, 41.0, 103.0, 78.0), 1, 0.30)
+add_zone(pcbnew.In2_Cu, "+3V3_DIG", zrect(103.5, 41.0, 127.0, 78.0), 1, 0.30)
 
 # U12 excluded: Marki footprint already embeds 9 PTH thermal vias in the EP
 EPGRID = {"U1": (2, 2, 0.9), "U2": (3, 3, 0.9),

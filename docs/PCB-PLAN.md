@@ -18,7 +18,7 @@ divided LO care about the substrate; everything else is DC/SPI/IF.
 FR4 core ≈0.9 mm — L3 power — prepreg — L4 signal/GND.
 50 Ω GCPW starting point: w ≈ 0.50 mm, gap ≈ 0.25 mm (field-solve against fab stackup).
 
-## Floorplan (board ≈ 60 × 42 mm)
+## Floorplan (board ≈ 66 × 46 mm)
 
 - **West edge:** J3 (TX) / J4 (RX) end-launch, ≥26.5 GHz rated (2.92 mm preferred).
   U12 PA driver between U1 and J3; U1 BGT24 center-west. 24 GHz GCPW with via
