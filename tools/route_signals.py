@@ -117,11 +117,38 @@ def paint_rect(dsts, lay, hw, bx0, by0, bx1, by1, net):
             if math.hypot(ddx, ddy) < r:
                 for d in dsts: _mark(d[(lay, hw)], ix * NY + iy, nc)
 
+VIA_ENV = 0.3 + CLR + 0.02       # via copper envelope vs foreign outline
+
+def _via_rect(bx0, by0, bx1, by1, net):
+    r = VIA_ENV
+    ax0, ay0 = cell(bx0 - r, by0 - r); ax1, ay1 = cell(bx1 + r, by1 + r)
+    nc = net if 0 < net < 255 else 255
+    for ix in range(max(ax0, 0), min(ax1, NX - 1) + 1):
+        for iy in range(max(ay0, 0), min(ay1, NY - 1) + 1):
+            px, py = xy(ix, iy)
+            ddx = max(bx0 - px, 0, px - bx1); ddy = max(by0 - py, 0, py - by1)
+            if math.hypot(ddx, ddy) < r: _mark(viamap, ix * NY + iy, nc)
+
+def _via_seg(x0, y0, x1, y1, geomhw, net):
+    r = VIA_ENV + geomhw
+    dx, dy = x1 - x0, y1 - y0
+    L2 = dx * dx + dy * dy
+    ax0, ay0 = cell(min(x0, x1) - r, min(y0, y1) - r)
+    ax1, ay1 = cell(max(x0, x1) + r, max(y0, y1) + r)
+    nc = net if 0 < net < 255 else 255
+    for ix in range(max(ax0, 0), min(ax1, NX - 1) + 1):
+        for iy in range(max(ay0, 0), min(ay1, NY - 1) + 1):
+            px, py = xy(ix, iy)
+            tt = 0.0 if L2 == 0 else max(0.0, min(1.0, ((px-x0)*dx + (py-y0)*dy) / L2))
+            if math.hypot(px - (x0 + tt*dx), py - (y0 + tt*dy)) < r:
+                _mark(viamap, ix * NY + iy, nc)
+
 def build_maps():
-    global maps, hardmaps, softmaps, holes
+    global maps, hardmaps, softmaps, holes, viamap
     maps = {(l, h): bytearray(NX * NY) for l in (0, 1) for h in HWS}
     hardmaps = {(l, h): bytearray(NX * NY) for l in (0, 1) for h in HWS}
     softmaps = {(l, h): bytearray(NX * NY) for l in (0, 1) for h in HWS}
+    viamap = bytearray(NX * NY)
     holes = []
     code2name = {b.FindNet(n).GetNetCode(): n
                  for n in list(pads_by_net) if b.FindNet(n)}
@@ -135,6 +162,7 @@ def build_maps():
                 pos = p.GetPosition()
                 holes.append((ToMM(pos.x), ToMM(pos.y)))
             net = code if n and not n.startswith("unconnected") else 255
+            _via_rect(r[0], r[1], r[2], r[3], net)
             for lay, on in ((0, p.IsOnLayer(F) or tht), (1, p.IsOnLayer(B) or tht)):
                 if not on: continue
                 for hw in HWS:
@@ -149,6 +177,7 @@ def build_maps():
             pos = t.GetPosition()
             x, y = ToMM(pos.x), ToMM(pos.y)
             holes.append((x, y))
+            _via_seg(x, y, x, y, VIA_D / 2, code)
             for lay in (0, 1):
                 for hw in HWS:
                     paint(dst, lay, hw, x, y, x, y, VIA_D / 2, code)
@@ -156,6 +185,8 @@ def build_maps():
             s, e = t.GetStart(), t.GetEnd()
             lay = 0 if t.GetLayer() == F else (1 if t.GetLayer() == B else None)
             if lay is None: continue
+            _via_seg(ToMM(s.x), ToMM(s.y), ToMM(e.x), ToMM(e.y),
+                     ToMM(t.GetWidth()) / 2, code)
             for hw in HWS:
                 paint(dst, lay, hw, ToMM(s.x), ToMM(s.y), ToMM(e.x), ToMM(e.y),
                       ToMM(t.GetWidth()) / 2, code)
@@ -169,6 +200,9 @@ def build_maps():
                     if (px - OX < lim or OX + BW - px < lim or
                             py - OY < lim or OY + BH - py < lim):
                         m[ix * NY + iy] = 255; hm[ix * NY + iy] = 255
+                    if (px - OX < 0.55 or OX + BW - px < 0.55 or
+                            py - OY < 0.55 or OY + BH - py < 0.55):
+                        viamap[ix * NY + iy] = 255
 
 # ---------- emit helpers (with per-net bookkeeping for rip-up) ----------
 emitted = {}                    # net name -> [board objects]
@@ -183,6 +217,7 @@ def add_track(x0, y0, x1, y1, w, lay, code, book=None, stub=False):
         STUB_LAST[0] = t
     dst = (maps, softmaps) if (book and not stub) else (maps, hardmaps)
     if book is not None and not stub: emitted.setdefault(book, []).append(t)
+    _via_seg(x0, y0, x1, y1, w / 2, code)
     for hw in HWS:
         paint(dst, lay, hw, x0, y0, x1, y1, w / 2, code)
 
@@ -194,29 +229,23 @@ def add_via(x, y, code, book=None):
     holes.append((x, y))
     dst = (maps, softmaps) if book else (maps, hardmaps)
     if book is not None: emitted.setdefault(book, []).append(v)
+    _via_seg(x, y, x, y, VIA_D / 2, code)
     for lay in (0, 1):
         for hw in HWS:
             paint(dst, lay, hw, x, y, x, y, VIA_D / 2, code)
 
 def hole_ok(x, y):
-    return all((x-a)**2 + (y-c)**2 >= 0.65**2 for a, c in holes)
+    return all((x-a)**2 + (y-c)**2 >= 0.56**2 for a, c in holes)
 
 def hwclass(hw):
     if hw <= 0.075: return 0.075
     return 0.1 if hw <= 0.1 else 0.2
 
 def via_ok(code, hw, ix, iy):
-    # via envelope (0.3 + 0.15 clr = 0.45) is independent of track width:
-    # 3x3 cells on the 0.1-class map cover 0.25+0.28 = 0.53
-    if not hole_ok(*xy(ix, iy)): return False
-    m0, m1 = maps[(0, 0.1)], maps[(1, 0.1)]
-    for dx in (-1, 0, 1):
-        for dy in (-1, 0, 1):
-            jx, jy = ix + dx, iy + dy
-            if not (0 <= jx < NX and 0 <= jy < NY): return False
-            k = jx * NY + jy
-            if m0[k] not in (0, code) or m1[k] not in (0, code): return False
-    return True
+    # exact-geometry feasibility map + drill spacing
+    v = viamap[ix * NY + iy]
+    if v != 0 and v != code: return False
+    return hole_ok(*xy(ix, iy))
 
 # ---------- A* ----------
 def astar(code, hw, sources, goals, rip=False):
