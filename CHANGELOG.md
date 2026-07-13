@@ -156,3 +156,10 @@ SPI/USB/EEPROM, ADP5600 → −VGG gate bias.
   ladder had no stabilizing zero and could not lock), values 910pF/270R/15nF/
   560R/270pF for fc=146kHz, PM=52deg at Kvco typ, Icp 2.5mA.
 - Board updated surgically: R4.1 re-netted, LF_A/LF_B rerouted, values synced.
+
+## Rev-F (2026-07-13)
+
+- IF stage sized against the link budget (docs/IF-LINK-BUDGET.md):
+  gain x11 -> x19 (R13/R16 10k -> 18k) aligning mixer IP1dB with ADC full
+  scale; coupling C36/C37 100nF -> 560pF moves the HPF corner 16 Hz ->
+  2.8 kHz (1.7 m min range, rejects TX-leakage beat). Values only.

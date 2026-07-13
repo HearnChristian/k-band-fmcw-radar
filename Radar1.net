@@ -1,7 +1,7 @@
 (export (version "E")
   (design
     (source "/home/christian-thomas-hearn/Desktop/X-BAND FMCW RADAR/Radar1/Radar1.kicad_sch")
-    (date "2026-07-13T09:02:19-0600")
+    (date "2026-07-13T10:16:30-0600")
     (tool "Eeschema 9.0.7")
     (sheet (number "1") (name "/") (tstamps "/")
       (title_block
@@ -527,7 +527,7 @@
       (sheetpath (names "/") (tstamps "/"))
       (tstamps "194fde9f-01cc-4d3c-b44b-e811beeded77"))
     (comp (ref "C36")
-      (value "100nF")
+      (value "560pF")
       (footprint "Capacitor_SMD:C_0603_1608Metric")
       (fields
         (field (name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
@@ -541,7 +541,7 @@
       (sheetpath (names "/") (tstamps "/"))
       (tstamps "3b99f847-2f94-4191-90e8-951cf74e4bb1"))
     (comp (ref "C37")
-      (value "100nF")
+      (value "560pF")
       (footprint "Capacitor_SMD:C_0603_1608Metric")
       (fields
         (field (name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
@@ -1021,7 +1021,7 @@
       (sheetpath (names "/") (tstamps "/"))
       (tstamps "8f7f3bea-f3b0-461e-afb5-cb4a425bcfb2"))
     (comp (ref "R13")
-      (value "10k")
+      (value "18k")
       (footprint "Resistor_SMD:R_0603_1608Metric")
       (fields
         (field (name "Footprint") "Resistor_SMD:R_0603_1608Metric")
@@ -1063,7 +1063,7 @@
       (sheetpath (names "/") (tstamps "/"))
       (tstamps "0fb4c6b6-0cf6-4613-a995-83a25134c281"))
     (comp (ref "R16")
-      (value "10k")
+      (value "18k")
       (footprint "Resistor_SMD:R_0603_1608Metric")
       (fields
         (field (name "Footprint") "Resistor_SMD:R_0603_1608Metric")

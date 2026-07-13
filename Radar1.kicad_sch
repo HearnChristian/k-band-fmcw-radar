@@ -16400,7 +16400,7 @@
 				)
 			)
 		)
-		(property "Value" "10k"
+		(property "Value" "18k"
 			(at 182.88 228.6 90)
 			(effects
 				(font
@@ -17853,7 +17853,7 @@
 				)
 			)
 		)
-		(property "Value" "100nF"
+		(property "Value" "560pF"
 			(at 111.887 228.6 90)
 			(effects
 				(font
@@ -18553,7 +18553,7 @@
 				)
 			)
 		)
-		(property "Value" "10k"
+		(property "Value" "18k"
 			(at 142.24 228.6 90)
 			(effects
 				(font
@@ -23695,7 +23695,7 @@
 				)
 			)
 		)
-		(property "Value" "100nF"
+		(property "Value" "560pF"
 			(at 152.527 228.6 90)
 			(effects
 				(font
