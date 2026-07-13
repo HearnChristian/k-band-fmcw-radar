@@ -248,12 +248,16 @@ def via_ok(code, hw, ix, iy):
     return hole_ok(*xy(ix, iy))
 
 # ---------- A* ----------
-def astar(code, hw, sources, goals, rip=False):
-    """returns (node path, set of ripped net codes) or (None, None)."""
+def astar(code, hw, sources, goals, rip=False, extra=frozenset(),
+          forbid=frozenset()):
+    """returns (node path, set of ripped net codes) or (None, None).
+    extra: cells pre-validated by exact clearance that A* may traverse
+    even where the conservative blocking map says no."""
     mF, mB = maps[(0, hw)], maps[(1, hw)]
     hF, hB = hardmaps[(0, hw)], hardmaps[(1, hw)]
     sF, sB = softmaps[(0, hw)], softmaps[(1, hw)]
     def state(lay, ix, iy):
+        if (lay, ix, iy) in gset or (lay, ix, iy) in extra: return 0
         k = ix * NY + iy
         v = (mF if lay == 0 else mB)[k]
         if v == 0 or v == code: return 0                     # free
@@ -261,7 +265,7 @@ def astar(code, hw, sources, goals, rip=False):
         hv = (hF if lay == 0 else hB)[k]
         if hv not in (0, code): return -1                    # pad/via: hard
         sv = (sF if lay == 0 else sB)[k]
-        if sv in (0, 255, code): return -1                   # multi: hard
+        if sv in (0, 255, code) or sv in forbid: return -1
         return sv                                            # rippable net
     gset = goals
     gxy = [xy(ix, iy) for (_, ix, iy) in goals]
@@ -333,14 +337,23 @@ def emit(path, w, code, book):
                   w, path[i][0], code, book=book)
         i = j
 
+PADSH = 0.09     # roundrect/oval corner radius: bbox corners have no copper
+
 def pad_goal_cells(px, py, rect, lay, code, hw, tht):
     out = []
     m = maps[(lay, hwclass(hw))]
+    sx = min(PADSH, (rect[2] - rect[0]) * 0.25)
+    sy = min(PADSH, (rect[3] - rect[1]) * 0.25)
     ax0, ay0 = cell(rect[0], rect[1]); ax1, ay1 = cell(rect[2], rect[3])
     for ix in range(max(ax0, 0), min(ax1, NX - 1) + 1):
         for iy in range(max(ay0, 0), min(ay1, NY - 1) + 1):
             qx, qy = xy(ix, iy)
-            if rect[0] - 0.01 <= qx <= rect[2] + 0.01 and rect[1] - 0.01 <= qy <= rect[3] + 0.01:
+            # inside the shrunk rect OR on the pad's centre axes: real copper
+            on_ax = (abs(qx - px) <= 0.03 or abs(qy - py) <= 0.03)
+            if (rect[0] + (0 if on_ax else sx) - 0.01 <= qx <=
+                    rect[2] - (0 if on_ax else sx) + 0.01 and
+                rect[1] + (0 if on_ax else sy) - 0.01 <= qy <=
+                    rect[3] - (0 if on_ax else sy) + 0.01):
                 if m[ix * NY + iy] in (0, code):
                     for L in ((0, 1) if tht else (lay,)): out.append((L, ix, iy))
     if not out:

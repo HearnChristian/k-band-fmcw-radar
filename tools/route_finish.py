@@ -23,6 +23,7 @@ for _k in ("b", "F", "B", "maps", "hardmaps", "softmaps", "holes", "cell",
            "pad_rect", "NX", "NY", "STEP", "hwclass"):
     globals()[_k] = G[_k]
 b = G["b"]
+emitted = G["emitted"]
 
 RF_NETS = ("RF_TX", "ANT_TX", "ANT_RX")
 gcode = b.FindNet("GND").GetNetCode()
@@ -103,15 +104,17 @@ def clusters_of(n, code):
         if ka == "pad":
             r = ga[2]
             if not ga[4] and layb is not None and layb != ga[3]: return False
-            return any(r[0]-hw-.01 <= x <= r[2]+hw+.01 and
-                       r[1]-hw-.01 <= y <= r[3]+hw+.01 for x, y in pts)
+            sx = min(0.09, (r[2]-r[0]) * 0.25)
+            sy = min(0.09, (r[3]-r[1]) * 0.25)
+            return any(r[0]+sx-hw+.05 <= x <= r[2]-sx+hw-.05 and
+                       r[1]+sy-hw+.05 <= y <= r[3]-sy+hw-.05 for x, y in pts)
         if ka == "via":
-            return any(math.hypot(x-ga[0], y-ga[1]) <= ga[2]+hw+.01
+            return any(math.hypot(x-ga[0], y-ga[1]) <= ga[2]+hw-.05
                        for x, y in pts)
         if layb is not None and ga[5] != 2 and layb != 2 and ga[5] != layb:
             return False
         seg = (ga[0], ga[1], ga[2], ga[3])
-        return any(_segd(x, y, seg) <= ga[4]+hw+.01 for x, y in pts)
+        return any(_segd(x, y, seg) <= ga[4]+hw-.05 for x, y in pts)
     parent = list(range(len(items) + 1))
     def find(i):
         while parent[i] != i: parent[i] = parent[parent[i]]; i = parent[i]
@@ -170,6 +173,103 @@ def stitch_pad(px, py, rect, code, rail):
             return True
     return False
 
+# exact-geometry goal cells: a cell inside the pad is a valid track end if
+# real clearance to every foreign outline holds, even when the padded
+# blocking map (conservative +0.05) says no
+_geo = None
+def _build_geo():
+    global _geo
+    _geo = []
+    for fp in b.GetFootprints():
+        for p_ in fp.Pads():
+            _geo.append(("r", pad_rect(p_), 0.0, p_.GetNetCode()))
+    for tt in b.Tracks():
+        if isinstance(tt, pcbnew.PCB_VIA):
+            pos = tt.GetPosition()
+            _geo.append(("s", (ToMM(pos.x), ToMM(pos.y), ToMM(pos.x),
+                               ToMM(pos.y)), ToMM(tt.GetWidth())/2,
+                         tt.GetNetCode()))
+        else:
+            s, e = tt.GetStart(), tt.GetEnd()
+            _geo.append(("s", (ToMM(s.x), ToMM(s.y), ToMM(e.x), ToMM(e.y)),
+                         ToMM(tt.GetWidth())/2, tt.GetNetCode()))
+
+def exact_clear(cx, cy, code, hw):
+    lim = hw + 0.15 + 0.005
+    for kind, g, ghw, c in _geo:
+        if c == code: continue
+        if kind == "r":
+            if g[0]-2 > cx or g[2]+2 < cx or g[1]-2 > cy or g[3]+2 < cy: continue
+            ddx = max(g[0]-cx, 0, cx-g[2]); ddy = max(g[1]-cy, 0, cy-g[3])
+            if math.hypot(ddx, ddy) < lim: return False
+        else:
+            if min(g[0], g[2])-2 > cx or max(g[0], g[2])+2 < cx: continue
+            if min(g[1], g[3])-2 > cy or max(g[1], g[3])+2 < cy: continue
+            if _segd(cx, cy, g) < lim + ghw: return False
+    return True
+
+_pgc_orig = pad_goal_cells
+def pad_goal_cells_exact(px, py, rect, lay, code, hw, tht):
+    out = _pgc_orig(px, py, rect, lay, code, hw, tht)
+    if out: return out
+    if _geo is None: _build_geo()
+    ax0, ay0 = cell(rect[0], rect[1]); ax1, ay1 = cell(rect[2], rect[3])
+    sx = min(0.09, (rect[2]-rect[0]) * 0.25)
+    sy = min(0.09, (rect[3]-rect[1]) * 0.25)
+    for ix in range(max(ax0, 0), min(ax1, NX-1)+1):
+        for iy in range(max(ay0, 0), min(ay1, NY-1)+1):
+            qx, qy = xy(ix, iy)
+            on_ax = (abs(qx - px) <= 0.03 or abs(qy - py) <= 0.03)
+            if not (rect[0] + (0 if on_ax else sx) - 0.01 <= qx <=
+                        rect[2] - (0 if on_ax else sx) + 0.01 and
+                    rect[1] + (0 if on_ax else sy) - 0.01 <= qy <=
+                        rect[3] - (0 if on_ax else sy) + 0.01): continue
+            if exact_clear(qx, qy, code, hw):
+                for L in ((0, 1) if tht else (lay,)): out.append((L, ix, iy))
+    return out
+pad_goal_cells = pad_goal_cells_exact
+
+def approach_cells(members, code, hw):
+    """map-blocked cells near the stray that a hw track may legally use."""
+    if _geo is None: _build_geo()
+    out = set()
+    for kind, g in members:
+        if kind != "pad": continue
+        r = g[2]
+        ax0, ay0 = cell(r[0] - 1.0, r[1] - 1.0)
+        ax1, ay1 = cell(r[2] + 1.0, r[3] + 1.0)
+        for ix in range(max(ax0, 1), min(ax1, NX - 2) + 1):
+            for iy in range(max(ay0, 1), min(ay1, NY - 2) + 1):
+                qx, qy = xy(ix, iy)
+                if exact_clear(qx, qy, code, hw):
+                    out.add((0, ix, iy))
+    return out
+
+def flood_stitch(members, code, rail, book=None):
+    """BFS the stray cluster's reachable F region for a legal plane via."""
+    seeds = {s for s in cluster_cells(members, code) if s[0] == 0}
+    m0 = G["maps"][(0, 0.1)]
+    seen = set(seeds)
+    stack = list(seen)
+    best = None
+    while stack and len(seen) < 6000:
+        lay, ix, iy = stack.pop()
+        if via_ok(code, 0.1, ix, iy) and plane_ok(rail, *xy(ix, iy)):
+            best = (lay, ix, iy); break
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            jx, jy = ix + dx, iy + dy
+            nb = (0, jx, jy)
+            if not (0 < jx < NX - 1 and 0 < jy < NY - 1) or nb in seen: continue
+            if m0[jx * NY + jy] in (0, code):
+                seen.add(nb); stack.append(nb)
+    if not best: return False
+    if best not in seeds:
+        path, _ = astar(code, 0.1, seeds, {best})
+        if path is None: return False
+        emit(path, 0.2, code, book)
+    add_via(*xy(best[1], best[2]), code, book=book)
+    return True
+
 code2name = {b.FindNet(n).GetNetCode(): n for n in pads_by_net if b.FindNet(n)}
 
 def rip_near_path(victims, path):
@@ -177,7 +277,7 @@ def rip_near_path(victims, path):
     pathcells = {}
     for (lay, ix, iy) in path:
         pathcells.setdefault(lay, set()).add((ix, iy))
-    k = 0
+    k = []
     vcodes = {b.FindNet(v).GetNetCode() for v in victims}
     for tt in list(b.Tracks()):
         if tt.GetNetCode() not in vcodes: continue
@@ -196,11 +296,31 @@ def rip_near_path(victims, path):
                 if hit: break
             if hit: break
         if hit:
-            remove(tt); k += 1
+            remove(tt); k.append(tt)
+    # orphan sweep: fragments left without any pad still block the corridor
+    for v in victims:
+        vcode = b.FindNet(v).GetNetCode()
+        groups, _ = clusters_of(v, vcode)
+        for members in groups.values():
+            if any(kk == "pad" for kk, _ in members): continue
+            for tt in list(b.Tracks()):
+                if tt.GetNetCode() != vcode: continue
+                if isinstance(tt, pcbnew.PCB_VIA):
+                    pos = tt.GetPosition()
+                    key = ("via", (ToMM(pos.x), ToMM(pos.y),
+                                   ToMM(tt.GetWidth()) / 2))
+                else:
+                    s, e = tt.GetStart(), tt.GetEnd()
+                    lay = 0 if tt.GetLayer() == F else \
+                          (1 if tt.GetLayer() == B else 2)
+                    key = ("trk", (ToMM(s.x), ToMM(s.y), ToMM(e.x), ToMM(e.y),
+                                   ToMM(tt.GetWidth()) / 2, lay))
+                if key in members:
+                    remove(tt); k.append(tt)
     return k
 
 # ---------- 2./3. heal queue with rip ----------
-def heal_net(n, allow_rip):
+def heal_net(n, allow_rip, book=None):
     """returns (fully_healed, victims_ripped)"""
     code = b.FindNet(n).GetNetCode()
     groups, planeroot = clusters_of(n, code)
@@ -209,17 +329,14 @@ def heal_net(n, allow_rip):
     if len(padded) <= 1: return True, set()
     padded.sort(key=lambda t: (t[0] != planeroot,
                                -sum(1 for k, _ in t[1] if k == "pad")))
-    # plane rails: try stitching stray clusters straight into the plane
+    # plane rails: flood the stray's own free region for ANY legal via
+    # cell over the plane, drop a via there and route to it locally
     if n in PLANES:
         rest = []
         for root, m in padded[1:]:
-            done = False
-            for kind, g in m:
-                if kind == "pad" and not g[4] and \
-                   stitch_pad(g[0], g[1], g[2], code, n):
-                    done = True; break
-            if not done: rest.append((root, m))
-        if not rest: return True, set()
+            if flood_stitch(m, code, n, book): continue
+            rest.append((root, m))
+        if not rest: return True, None
         padded = padded[:1] + rest
     main_cells = cluster_cells(padded[0][1], code)
     w = 0.4 if n in RAILS else 0.2
@@ -229,9 +346,20 @@ def heal_net(n, allow_rip):
         srcs = main_cells - goals
         done = False
         for ww in widths:
-            path, ripped = astar(code, ww/2, srcs, goals)
+            extra = approach_cells(members, code, ww / 2) \
+                  | approach_cells(padded[0][1], code, ww / 2)
+            path, ripped = astar(code, ww/2, srcs, goals, extra=extra)
+            if n in DEBUG_NETS and path is None:
+                m0 = G["maps"][(0, hwclass(ww/2))]
+                m1 = G["maps"][(1, hwclass(ww/2))]
+                sp = sum(1 for (l, ix, iy) in srcs
+                         if (m0 if l == 0 else m1)[ix*NY+iy] in (0, code))
+                gp = sum(1 for (l, ix, iy) in goals
+                         if (m0 if l == 0 else m1)[ix*NY+iy] in (0, code))
+                print(f"  dbg {n} w={ww}: srcs {len(srcs)}({sp} pass) "
+                      f"goals {len(goals)}({gp} pass) -> NO PATH")
             if path and not ripped:
-                emit(path, ww, code, None)
+                emit(path, ww, code, book)
                 main_cells |= set(path) | goals
                 done = True; break
         if done: continue
@@ -255,29 +383,84 @@ print(f"split nets at start: {splits}")
 
 queue = list(splits)
 tries = {}
-rip_budget = 40
+DEBUG_NETS = set()
 unresolved = []
-while queue:
+while queue:                                   # additive pass
     n = queue.pop(0)
     tries[n] = tries.get(n, 0) + 1
-    ok, ripinfo = heal_net(n, allow_rip=False)
+    globals()["_geo"] = None
+    ok, _ = heal_net(n, allow_rip=False)
     if ok:
         print(f"healed {n}")
-        continue
-    if ripinfo:
-        victims, path = ripinfo
-        rip_budget -= 1
-        rm = rip_near_path(victims, path)
-        print(f"rip for {n}: cut {sorted(victims)} ({rm} segs, "
-              f"budget {rip_budget})")
-        build_maps()
-        queue.insert(0, n)
-        for v in victims:
-            if v not in queue: queue.append(v)
-    elif tries[n] <= 3:
-        queue.append(n)          # try again after later heals free space
+    elif tries[n] <= 2:
+        queue.append(n)
     else:
         unresolved.append(n)
+print(f"after additive pass, unresolved: {unresolved}")
+
+def txn_heal(n, budget):
+    """rip-and-reroute with full rollback if anything cannot be re-healed."""
+    code = b.FindNet(n).GetNetCode()
+    widths = (0.15, 0.2)
+    groups, planeroot = clusters_of(n, code)
+    padded = [(root, m) for root, m in groups.items()
+              if any(k == "pad" for k, _ in m)]
+    if len(padded) <= 1: return True, budget
+    padded.sort(key=lambda t: (t[0] != planeroot,
+                               -sum(1 for k, _ in t[1] if k == "pad")))
+    main_cells = cluster_cells(padded[0][1], code)
+    for root, members in padded[1:]:
+        goals = cluster_cells(members, code)
+        srcs = main_cells - goals
+        fixed = False
+        forbid = set()
+        for ww in widths:
+            if fixed or budget <= 0: break
+            for _alt in range(3):
+                if budget <= 0: break
+                globals()["_geo"] = None
+                extra = approach_cells(members, code, ww/2) \
+                      | approach_cells(padded[0][1], code, ww/2)
+                path, ripped = astar(code, ww/2, srcs, goals, rip=True,
+                                     extra=extra, forbid=forbid)
+                if not path or not ripped: break
+                victims = sorted({code2name[c] for c in ripped
+                                  if c in code2name} - {n})
+                if not victims: break
+                budget -= 1
+                removed = rip_near_path(victims, path)
+                build_maps()
+                emitted["__txn__"] = []
+                path2, _ = astar(code, ww/2, srcs, goals, extra=extra)
+                ok2 = False
+                if path2:
+                    emit(path2, ww, code, "__txn__")
+                    ok2 = all(heal_net(v, allow_rip=False, book="__txn__")[0]
+                              for v in victims)
+                if ok2:
+                    print(f"txn: {n} healed by cutting {victims} "
+                          f"({len(removed)} segs)")
+                    emitted["__txn__"] = []
+                    main_cells |= set(path2) | goals
+                    fixed = True
+                    break
+                # rollback, then try a different corridor
+                for o in emitted.get("__txn__", []): remove(o)
+                emitted["__txn__"] = []
+                for o in removed: b.Add(o)
+                build_maps()
+                forbid |= {b.FindNet(v).GetNetCode() for v in victims}
+                print(f"txn: {n} via {victims} rolled back")
+        if not fixed: return False, budget
+    return True, budget
+
+budget = 20
+still_bad = []
+for n in unresolved:
+    ok, budget = txn_heal(n, budget)
+    if ok: print(f"healed {n} (txn)")
+    else: still_bad.append(n)
+unresolved = still_bad
 print(f"unresolved nets: {unresolved}")
 
 # ---------- diagnostics for unresolved ----------
